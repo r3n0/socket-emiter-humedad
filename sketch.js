@@ -1,7 +1,7 @@
 const nCanales = 15;
 let socket;
-let valorRecibido;
-nombreDeCanal = 'canal-1';
+let valorHumedad;
+nombreDeCanal = 'canal-15';
 
 
 //servo arduino
@@ -15,19 +15,20 @@ function setup() {
 
 	// Conexión al servidor (usa tu IP y puerto 3000)
 	socket = io('http://10.0.0.101:3000', {
-		transports: ['websocket'],
+		// Eliminamos la restricción de solo websocket para mayor compatibilidad
+		transports: ['polling', 'websocket'],
+		reconnection: true
 	});
 
-	// 1. Confirmar conexión y unirse al canal
+	// Añade esto para debuggear en la consola de p5.js
+	socket.on('connect_error', (err) => {
+		console.log('Error de conexión detallado:', err.message);
+	});
+
+	// Al conectarnos, nos unimos al canal
 	socket.on('connect', () => {
-		console.log('✅ Receptor conectado con ID:', socket.id);
+		console.log('✅ Conectado al servidor con ID:', socket.id);
 		socket.emit('join-channel', nombreDeCanal);
-	});
-
-	// 2. ESCUCHAR el evento que envía el servidor
-	socket.on('update-value', (data) => {
-		valorRecibido = data;
-		// console.log('📥 Valor recibido desde el emisor:', valorRecibido);
 	});
 
 	// 
@@ -50,6 +51,9 @@ function setup() {
 		print('Error Serial:', err);
 	});
 
+	// 5. Callback: Cuando llegan datos
+	serial.on('data', serialEvent);
+
 	// Botón para conectar (El navegador exige interacción del usuario)
 	let connectBtn = createButton('Conectar a Arduino');
 	connectBtn.position(10, 10);
@@ -63,22 +67,10 @@ function draw() {
 	let lineHeight = (height / nCanales);
 	fill(0);
 	textSize(barheight);
-	text(nombreDeCanal, barheight, lineHeight * 2 / 2);
+	text('Humedad: ' + valorHumedad, barheight, lineHeight * 2 / 2);
 
-	rect(100, lineHeight * 2, valorRecibido * 4, barheight);
+	rect(100, lineHeight * 2, valorHumedad * 4, barheight);
 
-
-	// Si el puerto está abierto, enviamos datos
-	if (serial.port) {
-		// Mapeamos la posición X del mouse (0 a ancho) a grados (0 a 180)
-		// 'floor' es para enviar números enteros, no decimales
-
-		// Restringimos los valores para proteger el servo
-		outByte = constrain(valorRecibido, 0, 180);
-
-		// Enviamos el dato al Arduino
-		serial.write(outByte);
-	}
 }
 
 
@@ -87,7 +79,22 @@ function connectToSerial() {
 		// Esto abre la ventana nativa del navegador para elegir el puerto
 		serial.requestPort();
 	} else {
-		// Si ya hay puerto, lo abrimos
 		serial.open();
+	}
+}
+
+function serialEvent() {
+	// Leer datos del puerto hasta el salto de línea
+	let data = serial.readStringUntil('\n');
+
+	if (data) {
+		// Limpiar espacios en blanco
+		let trimmedData = trim(data);
+
+		// Si es un número válido, lo usamos
+		if (trimmedData.length > 0) {
+			valorHumedad = int(trimmedData);
+			console.log("Recibido Serial:", valorHumedad);
+		}
 	}
 }
