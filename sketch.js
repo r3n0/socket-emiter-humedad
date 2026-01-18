@@ -70,7 +70,10 @@ function draw() {
 	text('Humedad: ' + valorHumedad, barheight, lineHeight * 2 / 2);
 
 	rect(100, lineHeight * 2, valorHumedad * 4, barheight);
-
+	socket.emit('send-value', {
+		channel: nombreDeCanal,
+		value: valorHumedad,
+	});
 }
 
 
@@ -94,7 +97,7 @@ function serialEvent() {
 		// Si es un número válido, lo usamos
 		if (trimmedData.length > 0) {
 			valorHumedad = int(trimmedData);
-			console.log("Recibido Serial:", valorHumedad);
+			// console.log("Recibido Serial:", valorHumedad);
 		}
 	}
 }
